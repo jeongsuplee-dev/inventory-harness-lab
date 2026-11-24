@@ -20,7 +20,7 @@ import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3'
 import { PrismaClient } from '../src/generated/prisma/client'
 import { applyMovement } from '../src/lib/stock'
 import { ALLOCATION, allocateLots } from '../src/lib/fefo'
-import { addDays, today } from '../src/lib/date'
+import { addDays, clock, today } from '../src/lib/date'
 import { LOCATION_TYPES, MOVEMENT_TYPES, POPUP_STATUS, TRANSFER_STATUS } from '../src/lib/constants'
 
 const url = process.env.DATABASE_URL ?? 'file:./prisma/dev.db'
@@ -29,7 +29,7 @@ const db = new PrismaClient({ adapter: new PrismaBetterSqlite3({ url }) })
 const T = today()
 const d = (offset: number) => addDays(T, offset) // 유통기한
 const ago = (days: number, hour = 10) => {
-  const x = new Date()
+  const x = clock()
   x.setDate(x.getDate() - days)
   x.setHours(hour, 0, 0, 0)
   return x
@@ -62,7 +62,9 @@ async function main() {
   }
 
   // ───────── 사용자
-  const hash = await bcrypt.hash('demo1234', 10)
+  // 고정 salt: 같은 시드가 항상 같은 해시를 만든다 (검증 재현성). 데모 계정 전용이며 로그인 검사는 그대로 동작한다.
+  const DEMO_SALT = '$2b$10$Dmo5a1LwQO4kHVyVd8tNHe'
+  const hash = bcrypt.hashSync('demo1234', DEMO_SALT)
   const warehouse = await db.user.create({
     data: { email: 'warehouse@demo.kr', name: '이현', passwordHash: hash, role: 'ADMIN' },
   })
@@ -389,6 +391,16 @@ async function main() {
     if (sum > 0) console.log(`  ${l.name.padEnd(12)} ${String(sum).padStart(6)}개`)
   }
   console.log(`  ${'총 재고'.padEnd(11)} ${String(total).padStart(6)}개 · 이동 기록 ${mvCount}건`)
+  // ───────── 감사 타임스탬프 고정 (검증 재현성)
+  // createdAt·updatedAt은 DB 기본값(실제 시각)으로 채워지므로, 같은 시드가 같은 DB를 만들도록
+  // 고정 시각으로 맞춘다. Movement는 ago()로 시각을 명시하므로 대상이 아니다.
+  const fixedAt = clock()
+  await db.user.updateMany({ data: { createdAt: fixedAt } })
+  await db.location.updateMany({ data: { createdAt: fixedAt } })
+  await db.product.updateMany({ data: { createdAt: fixedAt } })
+  await db.popup.updateMany({ data: { createdAt: fixedAt } })
+  await db.lot.updateMany({ data: { updatedAt: fixedAt } })
+
   console.log('\n로그인: warehouse@demo.kr / sales@demo.kr  (비밀번호 demo1234)')
 }
 

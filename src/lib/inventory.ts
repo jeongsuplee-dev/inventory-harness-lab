@@ -1,5 +1,5 @@
 import { db } from './db'
-import { addDays, dateOnly, daysUntil, today } from './date'
+import { addDays, clock, dateOnly, daysUntil, today } from './date'
 import { expiryStatus, type ExpiryStatus } from './expiry'
 import { AVAILABLE_LOCATION_TYPES, LOCATION_TYPES, TRANSIT_DELAY_DAYS } from './constants'
 
@@ -101,7 +101,7 @@ export async function getTodos() {
     where: { type: LOCATION_TYPES.FULFILLMENT, isActive: true },
     orderBy: { name: 'asc' },
   })
-  const t = new Date()
+  const t = clock()
   const reflected = fulfillments.map((f) => ({
     id: f.id,
     name: f.name,
@@ -254,7 +254,7 @@ export async function getFulfillmentLocations(): Promise<FulfillmentCard[]> {
     include: { lots: { where: { quantity: { gt: 0 } } } },
     orderBy: { id: 'asc' },
   })
-  const now = new Date()
+  const now = clock()
 
   return locations.map((l) => ({
     id: l.id,

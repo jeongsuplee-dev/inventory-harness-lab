@@ -5,8 +5,18 @@ export function dateOnly(d: Date | string): Date {
   return new Date(Date.UTC(x.getUTCFullYear(), x.getUTCMonth(), x.getUTCDate()))
 }
 
+/**
+ * 현재 시각. 검증(npm run verify)에서는 VERIFY_NOW로 고정해,
+ * 시드와 테스트 결과가 실행 날짜와 무관하게 같게 나오도록 한다.
+ * 일반 실행에서는 환경변수가 없으므로 실제 시각을 쓴다.
+ */
+export function clock(): Date {
+  const fixed = typeof process !== 'undefined' ? process.env?.VERIFY_NOW : undefined
+  return fixed ? new Date(fixed) : new Date()
+}
+
 export function today(): Date {
-  const now = new Date()
+  const now = clock()
   return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()))
 }
 
@@ -20,6 +30,11 @@ export function addDays(base: Date, days: number): Date {
 export function daysUntil(target: Date): number {
   const MS = 86_400_000
   return Math.round((dateOnly(target).getTime() - today().getTime()) / MS)
+}
+
+/** 지금까지 지난 일수 (발송 후 경과 등 시각 기준). 렌더 본문에서는 이 헬퍼를 쓴다 */
+export function daysSince(past: Date): number {
+  return Math.floor((Date.now() - past.getTime()) / 86_400_000)
 }
 
 /** 2026-11-30 형식 */
